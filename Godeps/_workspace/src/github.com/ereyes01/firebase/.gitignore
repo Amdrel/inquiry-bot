@@ -1,0 +1,4 @@
+keys.go
+.*.sw*
+junit.xml
+*.coverprofile
