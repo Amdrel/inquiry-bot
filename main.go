@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
 
 	"github.com/stickmanventures/inquiry-bot/Godeps/_workspace/src/github.com/ereyes01/firebase"
 )
@@ -28,7 +29,7 @@ var watch = flag.String("firebase", "", "firebase url to watch")
 var secret = flag.String("secret", "", "secret for firebase authentication")
 
 // Optional secret passed from the command line passed to the firebase client.
-var hook = flag.String("hook", "", "webhook to use")
+var hook = flag.String("hook", "", "slack webhook to use")
 
 // Required argument for which channel the slackbot should post to.
 var channel = flag.String("channel", "", "channel to publish inquiries to")
@@ -69,6 +70,14 @@ func Publish(request map[string]interface{}) {
 }
 
 func main() {
+	// Query the flag values from the environment before parsing the flags so
+	// the flags take precedence if specified.
+	*secret = os.Getenv("INQUIRYBOT_SECRET")
+	*watch = os.Getenv("INQUIRYBOT_FIREBASE")
+	*hook = os.Getenv("INQUIRYBOT_HOOK")
+	*channel = os.Getenv("INQUIRYBOT_CHANNEL")
+
+	// Overwrite flag values and merge with environment variables.
 	flag.Parse()
 
 	// Check required arguments.
