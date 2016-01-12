@@ -61,4 +61,6 @@ func Post(email string, name string, phone string, referer string, request strin
 		log.Print(err)
 		return
 	}
+
+	log.Printf("inquiry: %s, %s", Truncate(email, 35), Truncate(request, 50))
 }

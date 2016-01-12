@@ -45,6 +45,15 @@ func RandRange(min, max int) int {
 	return rand.Intn(max-min) + min
 }
 
+// Special truncate that adds an ellipses.
+func Truncate(in string, length int) string {
+	if len(in) > 0 && len(in) > length {
+		return in[0:length] + "..."
+	}
+
+	return in
+}
+
 // Print usage with an error code.
 func PrintUsage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
