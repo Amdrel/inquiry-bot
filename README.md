@@ -10,7 +10,9 @@ Building the Docker image
 
 The easiest way to build the docker image is to use make. It is assumed you
 have a working docker environment.
-> make docker
+```shell
+make docker
+```
 
 Inquiry Bot requires that some environment variables be set when running in a
 docker container. The required environment variables are:
