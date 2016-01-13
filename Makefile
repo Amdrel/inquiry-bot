@@ -5,18 +5,20 @@ GOINSTALL=$(GOCMD) install
 
 DOCKERIMAGE_NAME=stickmanventures.com/inquirybot
 
-all: build
+all: inquiry-bot
 
-.PHONY: build docker install clean
-
-build:
+inquiry-bot:
 	$(GOBUILD)
 
-docker:
-	CGO_ENABLED=0 $(GOBUILD) -a -installsuffix cgo
-	docker build --no-cache -t $(DOCKERIMAGE_NAME) .
+.PHONY: docker install clean
 
-install:
+alpine:
+	CGO_ENABLED=0 $(GOBUILD) -a -installsuffix cgo
+
+docker: alpine
+	docker build -t $(DOCKERIMAGE_NAME) .
+
+install: inquiry-bot
 	$(GOINSTALL)
 
 clean:
