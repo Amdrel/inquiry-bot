@@ -10,7 +10,7 @@ all: inquiry-bot
 inquiry-bot:
 	$(GOBUILD)
 
-.PHONY: docker install clean
+.PHONY: alpine docker install clean
 
 alpine:
 	CGO_ENABLED=0 $(GOBUILD) -a -installsuffix cgo
