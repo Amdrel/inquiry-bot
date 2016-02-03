@@ -136,17 +136,29 @@ func main() {
 
 	api := new(firebase.Api)
 	c := firebase.NewClient(*watch, *secret, *api)
-	c = c.OrderBy("email").LimitToLast(2)
 
-	stop := make(chan bool)
-	events, err := c.Watch(nil, stop)
-	if err != nil {
-		log.Fatal(err)
+	// Reconnect loop in the event of failure.
+	for {
+		stop := make(chan bool)
+		events, err := c.Watch(nil, stop)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		stream(events, stop)
 	}
+}
 
+// Stream over SSE with firebase until an error occurs (disconnect or whatnot).
+func stream(events <-chan firebase.StreamEvent, stop chan bool) {
 	for {
 		// Wait for StreamEvents from the firebase SSE.
 		event := <-events
+
+		if event.Error != nil {
+			close(stop)
+			break
+		}
 
 		// The first StreamEvent is ignored since firebase does not allow
 		// limitToLast below 1.
