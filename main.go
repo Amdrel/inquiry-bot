@@ -18,6 +18,9 @@ import (
 	"flag"
 	"log"
 	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime/pprof"
 
 	"github.com/stickmanventures/inquiry-bot/Godeps/_workspace/src/github.com/ereyes01/firebase"
 )
@@ -34,9 +37,15 @@ var hook = flag.String("hook", "", "slack webhook to use")
 // Required argument for which channel the slackbot should post to.
 var channel = flag.String("channel", "", "channel to publish inquiries to")
 
+// Optional cpu-profile flag for performance debugging.
+var cpuprofile = flag.String("cpu-profile", "", "where to write cpu profile")
+
 // Counter for the amount of events received. Used to ignore the first event
 // firebase always sends; so that the slackbot does not duplicate inquiries.
 var count uint
+
+// Flag to determine if the cpu profiler is enabled.
+var profiling bool
 
 // Find the request and pass it on to the publisher.
 func Receive(event *firebase.StreamEvent) {
@@ -84,6 +93,46 @@ func main() {
 	if *watch == "" || *channel == "" || *hook == "" {
 		PrintUsage()
 	}
+
+	if *cpuprofile != "" {
+		path, err := filepath.Abs(*cpuprofile)
+		if err != nil {
+			log.Fatalf("fatal: unable to get absolute path of: %s", *cpuprofile)
+		}
+		log.Printf("debug: profiling, outputting to: %s", path)
+
+		// Remove any previously saved profile just in case.
+		if _, err := os.Stat(path); err == nil {
+			err = os.Remove(path)
+			if err != nil {
+				log.Fatalf("fatal: unable to unlink: %s", path)
+			}
+		}
+
+		// Start CPU profiling.
+		f, err := os.Create(path)
+		if err != nil {
+			log.Fatalf("fatal: unable to create profile at: %s", path)
+		}
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			log.Fatalf("fatal: unable to start cpu profiling: %s", err.Error())
+		}
+		profiling = true
+	}
+
+	// If the CPU profiler is running, flush the profile on SIGINT and exit
+	// with a clean return code.
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, os.Interrupt)
+	go func() {
+		<-sigchan
+		if profiling {
+			log.Printf("debug: flushing cpu profile")
+			pprof.StopCPUProfile()
+		}
+		os.Exit(0)
+	}()
 
 	api := new(firebase.Api)
 	c := firebase.NewClient(*watch, *secret, *api)
