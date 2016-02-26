@@ -15,6 +15,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"os"
@@ -22,7 +23,7 @@ import (
 	"path/filepath"
 	"runtime/pprof"
 
-	"github.com/stickmanventures/inquiry-bot/Godeps/_workspace/src/github.com/ereyes01/firebase"
+	"github.com/ereyes01/firebase"
 )
 
 // Optional secret passed from the command line passed to the firebase client.
@@ -46,37 +47,6 @@ var count uint
 
 // Flag to determine if the cpu profiler is enabled.
 var profiling bool
-
-// Find the request and pass it on to the publisher.
-func Receive(event *firebase.StreamEvent) {
-	if event.Event == "put" && event.Resource != nil {
-		Publish(event.Resource.(map[string]interface{}))
-	} else if event.Event == "patch" && event.Resource != nil {
-		records := event.Resource.(map[string]interface{})
-
-		for _, record := range records {
-			if record == nil {
-				continue
-			}
-			Publish(record.(map[string]interface{}))
-		}
-	}
-}
-
-// Push a request to slack as the slackbot.
-func Publish(request map[string]interface{}) {
-	if HasKey("email", request) && HasKey("name", request) && HasKey("phone", request) &&
-		HasKey("referer", request) && HasKey("request", request) &&
-		IsString(request["email"]) && IsString(request["name"]) && IsString(request["phone"]) &&
-		IsString(request["referer"]) && IsString(request["request"]) {
-
-		// Post to slack on another goroutine.
-		go func() {
-			Post(request["email"].(string), request["name"].(string), request["phone"].(string),
-				request["referer"].(string), request["request"].(string))
-		}()
-	}
-}
 
 func main() {
 	// Query the flag values from the environment before parsing the flags so
@@ -134,40 +104,76 @@ func main() {
 		os.Exit(0)
 	}()
 
-	api := new(firebase.Api)
-	c := firebase.NewClient(*watch, *secret, *api)
-
-	// Reconnect loop in the event of failure.
-	for {
-		stop := make(chan bool)
-		events, err := c.Watch(nil, stop)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		stream(events, stop)
+	stop := make(chan bool)
+	c := firebase.NewClient(*watch, *secret, nil)
+	events, err := c.Watch(requestParser, stop)
+	if err != nil {
+		log.Fatal(err)
 	}
-}
 
-// Stream over SSE with firebase until an error occurs (disconnect or whatnot).
-func stream(events <-chan firebase.StreamEvent, stop chan bool) {
-	for {
-		// Wait for StreamEvents from the firebase SSE.
-		event := <-events
-
+	// Main event loop, all valid requests from the watch are posted to slack
+	// using the slack webhook.
+	for event := range events {
 		if event.Error != nil {
-			close(stop)
-			break
-		}
-
-		// The first StreamEvent is ignored since firebase does not allow
-		// limitToLast below 1.
-		if count == 0 {
-			count = 1
+			log.Println("Stream error: ", event.Error)
 			continue
 		}
 
+		if event.UnmarshallerError != nil {
+			log.Println("Malformed event: ", event.UnmarshallerError)
+			continue
+		}
+
+		// Skip the first event so we don't replay past requests.
+		if count == 0 {
+			count += 1
+			continue
+		}
+
+		// Ignore nil events that can come through due to deletes.
+		if event.Resource == nil {
+			continue
+		}
+
+		// Post all the requests in the event to slack.
+		requests := event.Resource.([]interface{})
+		for _, request := range requests {
+			go Post(request.(map[string]interface{}))
+		}
+
 		count += 1
-		Receive(&event)
 	}
+}
+
+func requestParser(path string, data []byte) (interface{}, error) {
+	var wrapper interface{}
+	err := json.Unmarshal(data, &wrapper)
+	if err != nil {
+		return nil, err
+	}
+
+	if wrapper == nil {
+		return nil, err
+	}
+
+	m := wrapper.(map[string]interface{})
+	var requests []interface{}
+
+	// Loop through the response. Firebase can send this down with 2 different
+	// schemas that we have to check for, do not ask my why.
+	for _, v := range m {
+		switch vv := v.(type) {
+		case map[string]interface{}:
+			// If the children are maps then this is a bundle of requests.
+			requests = append(requests, vv)
+		case string:
+			// If we're looping through strings this is a single event. Pass the
+			// wrapper as it contains the request fields and return immediately
+			// to prevent duplicate requests being pushed.
+			requests = append(requests, m)
+			return requests, err
+		}
+	}
+
+	return requests, err
 }

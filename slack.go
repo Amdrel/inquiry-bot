@@ -16,7 +16,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -33,17 +32,23 @@ var quotes = []string{
 }
 
 // Post the inquiry details to the channel.
-func Post(email string, name string, phone string, referer string, request string) {
-	message := fmt.Sprintf(""+
-		"%s\n\n"+
+func Post(request map[string]interface{}) {
+	if !(HasKey("email", request) && HasKey("name", request) &&
+		HasKey("phone", request) && HasKey("referer", request) &&
+		HasKey("request", request)) {
 
-		"Email: %s\n"+
-		"Name: %s\n"+
-		"Phone: %s\n"+
-		"Referer: %s\n"+
-		"Request: %s\n",
+		log.Println("Received invalid event")
+		return
+	}
 
-		quotes[RandRange(0, len(quotes))], email, name, phone, referer, request)
+	message := "" +
+		quotes[RandRange(0, len(quotes))] + "\n\n" +
+
+		"Email: " + request["email"].(string) + "\n" +
+		"Name: " + request["name"].(string) + "\n" +
+		"Phone: " + request["phone"].(string) + "\n" +
+		"Referer: " + request["referer"].(string) + "\n" +
+		"Request: " + request["request"].(string) + "\n"
 
 	jsonPayload, err := json.Marshal(map[string]interface{}{
 		"text":    message,
@@ -62,5 +67,7 @@ func Post(email string, name string, phone string, referer string, request strin
 		return
 	}
 
-	log.Printf("inquiry: %s, %s", Truncate(email, 35), Truncate(request, 50))
+	log.Printf("inquiry: %s, %s",
+		Truncate(request["email"].(string), 35),
+		Truncate(request["request"].(string), 50))
 }

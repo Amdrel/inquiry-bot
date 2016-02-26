@@ -22,17 +22,6 @@ import (
 	"time"
 )
 
-// Type checks an interface to see if it is a string.
-func IsString(candidate interface{}) bool {
-	switch c := candidate.(type) {
-	case string:
-		var _ = c
-		return true
-	}
-
-	return false
-}
-
 // Checks if a string to interface map contains a key.
 func HasKey(key string, m map[string]interface{}) bool {
 	_, ok := m[key]
@@ -50,7 +39,6 @@ func Truncate(in string, length int) string {
 	if len(in) > 0 && len(in) > length {
 		return in[0:length] + "..."
 	}
-
 	return in
 }
 
