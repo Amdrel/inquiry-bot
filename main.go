@@ -156,22 +156,24 @@ func requestParser(path string, data []byte) (interface{}, error) {
 		return nil, err
 	}
 
-	m := wrapper.(map[string]interface{})
 	var requests []interface{}
 
-	// Loop through the response. Firebase can send this down with 2 different
-	// schemas that we have to check for, do not ask my why.
-	for _, v := range m {
-		switch vv := v.(type) {
-		case map[string]interface{}:
-			// If the children are maps then this is a bundle of requests.
-			requests = append(requests, vv)
-		case string:
-			// If we're looping through strings this is a single event. Pass the
-			// wrapper as it contains the request fields and return immediately
-			// to prevent duplicate requests being pushed.
-			requests = append(requests, m)
-			return requests, err
+	switch event := wrapper.(type) {
+	case map[string]interface{}:
+		// Loop through the response. Firebase can send this down with 2 different
+		// schemas that we have to check for, do not ask my why.
+		for _, v := range event {
+			switch vv := v.(type) {
+			case map[string]interface{}:
+				// If the children are maps then this is a bundle of requests.
+				requests = append(requests, vv)
+			case string:
+				// If we're looping through strings this is a single event. Pass the
+				// wrapper as it contains the request fields and return immediately
+				// to prevent duplicate requests being pushed.
+				requests = append(requests, event)
+				return requests, err
+			}
 		}
 	}
 
