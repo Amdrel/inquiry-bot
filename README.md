@@ -13,11 +13,15 @@ want to as well.
 
 Next you need to add a config value for your slack webhook.
 
-```firebase functions:config:set slack.webhook=https://hooks.slack.com/services/WEBHOOK_STRING```
+```shell
+firebase functions:config:set slack.webhook=https://hooks.slack.com/services/WEBHOOK_STRING
+```
 
 Once complete you can deploy the project just like any other firebase project.
 
-```firebase deploy --only functions```
+```shell
+firebase deploy --only functions
+```
 
 And that's all there is to it!
 
