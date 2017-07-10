@@ -1,61 +1,42 @@
-inquiry-bot
------------
+# Inquiry Bot
 
-inquiry-bot is a simple slack bot using webhooks to report business form
-submissions to slack. The bot watches a firebase endpoint and looks for
-specific properties before pushing to slack.
+Inquiry Bot is a simple slack bot using webhooks to report business form
+submissions to slack. Data is stored in firebase and sent to slack after
+being invoked by a [Firebase Realtime
+Trigger](https://firebase.google.com/docs/functions/database-events)
 
-Building the Docker image
--------------------------
+## Deploying to Firebase
 
-The easiest way to build the docker image is to use make. It is assumed you
-have a working docker environment.
-```shell
-make docker
-```
+After cloning the repo, install dependencies under the [functions](functions)
+directory. We have a `yarn.lock` file for yarn, but you can use npm if you
+want to as well.
 
-Inquiry Bot requires that some environment variables be set when running in a
-docker container. The required environment variables are:
-```shell
-INQUIRYBOT_FIREBASE='<FIREBASE_ENDPOINT>'
-INQUIRYBOT_SECRET='<FIREBASE_SECRET>'
-INQUIRYBOT_HOOK='<SLACKBOT_WEBHOOK_URL>'
-INQUIRYBOT_CHANNEL='#channel'
-```
-
-Here's an example of creating a container with these environment variables:
-```shell
-docker create \
-    -e INQUIRYBOT_FIREBASE='<FIREBASE_ENDPOINT>' \
-    -e INQUIRYBOT_SECRET='<FIREBASE_SECRET>' \
-    -e INQUIRYBOT_HOOK='<SLACKBOT_WEBHOOK_URL>' \
-    -e INQUIRYBOT_CHANNEL='#channel' \
-    stickmanventures.com/inquirybot
-```
-
-Deploying to GCP Compute Engine
--------------------------------
-
-Inquiry Bot can be deployed to GCP using the container-vm image. After making
-sure you are on the right project, a container vm can be created:
-```shell
-gcloud compute instances create slack-inquirybot \
-    --image container-vm \
-    --zone us-central1-f \
-    --machine-type f1-micro
-```
-
-Now the image needs to be pushed to GCP, to do so the docker image needs to be
-tagged under gcr.io:
-```shell
-docker tag stickmanventures.com/inquirybot gcr.io/<PROJECT_NAME>/inquirybot
-```
-
-Once tagged the image should be ready to push:
+Next you need to add a config value for your slack webhook.
 
 ```shell
-gcloud docker push gcr.io/<PROJECT_NAME>/inquirybot
+firebase functions:config:set slack.webhook=https://hooks.slack.com/services/WEBHOOK_STRING
 ```
 
-From there you should be able to find your instance in the Google Cloud Console
-and have a working docker environment with the image accessible.
+Once complete you can deploy the project just like any other firebase project.
+
+```shell
+firebase deploy --only functions
+```
+
+And that's all there is to it!
+
+## License
+
+Copyright 2016 Stickman Ventures
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+[http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

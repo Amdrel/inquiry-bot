@@ -1,3 +1,0 @@
-package: github.com/stickmanventures/inquiry-bot
-import:
-- package: github.com/ereyes01/firebase
